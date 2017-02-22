@@ -8,13 +8,28 @@ const async = require("async")
 // const pageurls = require('./movielist.js')
 const sql = require('../sql/mysql.js')
 
-
+const startDate = new Date() //开始时间
 const originUrl = 'http://kan.2345.com/top/rank.html'
 const pageurls = [] //排行榜url
 const detailPageUrlsArray = [] //
+const catchDate = []
 
 
 const ep = new eventproxy()
+
+
+
+const moviedetai = (sres)=>{
+	const infoArray = {}
+	const $ =cheerio.load(sres.text)
+
+	 infoArray.poster = $('.posterCon img').attr('src')//海报
+	cinfoArray.title = $('.txtIntroCon .tit a').attr('title') //电影名称
+	 infoArray.score = $('.txtIntroCon .emScore').test()//评分
+	 infoArray.jianjie	= $('.txtList .extend .sAll').test()//简介
+	// const other = $('.txtList .extend .sAll')
+	return infoArray
+}
 
 
 
@@ -66,13 +81,52 @@ const onRequest = (req, res) => {
 
        		let curCount = 0
        		const reptileMove =(url,callback)=>{
-       			const delay = parseInt((Math.random()*3000000)%1000,10)
+       			const delay = parseInt((Math.random()*30000000)%1000,10)
        			
-curCount++;
-                console.log('现在的并发数是', curCount, '，正在抓取的是', url, '，耗时' + delay + '毫秒');
+				curCount++;
+                console.log('现在的并发数是', curCount, '，正在抓取的是', url, '，耗时' + delay + '毫秒')
+
+
+                // superagent.get(url).charset('gbk').end((err,sres)=>{
+                // 	if(err){
+                // 		console.log(err)
+                // 		return
+                // 	}
+
+                // 	const movinfor = moviedetai(sres)
+                // 	catchDate.push(movinfor)
+
+                // 	res.write(movinfor);
+
+                // })
+
+                setTimeout(()=>{
+                	curCount--
+                	callback(null,url + 'Call back content')
+                },delay)
        		}
 
+       		async.mapLimit(allmovieurls,5,(url,callback)=>{
+       			reptileMove(url, callback)
+       		},(err,result)=>{
+       			endDate = new Date()
+       			console.log('final:')
+                console.log(result)
+				console.log(catchDate)     
+				
 
+
+                //统计结果
+                res.write('<br/>');
+                res.write('<br/>');
+                res.write('/**<br/>');
+                res.write(' * 爬虫统计结果<br/>');
+                res.write('**/<br/>');
+                res.write('1、爬虫开始时间：' + startDate + '<br/>');
+                res.write('2、爬虫结束时间：' + endDate + '<br/>');
+                res.write('3、耗时：' + (endDate - startDate) + 'ms' + ' --> ' + (Math.round((endDate - startDate) / 1000 / 60 * 100) / 100) + 'min <br/>');
+                res.end()           
+       		})
 
        })
 
@@ -90,7 +144,7 @@ curCount++;
        			const detailPageUrls = $('.picList .sTit a')
 
        			const tempArr = []//临时数组  用于emit发送数据
-       			for(let i=0; i<detailPageUrls.length; i++){
+       			for(let i=0; i<1; i++){
        				
        				const movieUrl = detailPageUrls.eq(i).attr('href')
        				detailPageUrlsArray.push(movieUrl)
