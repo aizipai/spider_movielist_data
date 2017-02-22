@@ -5,7 +5,6 @@ const superagent = require('superagent-charset')
 const cheerio = require('cheerio')
 const async = require("async")
 
-// const pageurls = require('./movielist.js')
 const sql = require('../sql/mysql.js')
 
 const startDate = new Date() //开始时间
@@ -13,6 +12,7 @@ const originUrl = 'http://kan.2345.com/top/rank.html'
 const pageurls = [] //排行榜url
 const detailPageUrlsArray = [] //
 const catchDate = []
+const deleteRepeat = []//去重数组
 
 
 const ep = new eventproxy()
@@ -24,11 +24,20 @@ const moviedetai = (sres)=>{
 	const $ =cheerio.load(sres.text)
 
 	 infoArray.poster = $('.posterCon img').attr('src')//海报
-	cinfoArray.title = $('.txtIntroCon .tit a').attr('title') //电影名称
-	 infoArray.score = $('.txtIntroCon .emScore').test()//评分
-	 infoArray.jianjie	= $('.txtList .extend .sAll').test()//简介
+	infoArray.title = $('.txtIntroCon .tit a').attr('title') //电影名称
+	 infoArray.score = $('.txtIntroCon .emScore').text()//评分
+	 infoArray.jianjie	= $('.txtList .extend .sAll').text()//简介
 	// const other = $('.txtList .extend .sAll')
 	return infoArray
+}
+
+const isRepeat = (url)=>{
+	if(deleteRepeat[url] == undefined){
+		deleteRepeat[url] = 1
+		return 0
+	}else if(deleteRepeat[url] == 1){
+		return 1
+	}
 }
 
 
@@ -38,14 +47,16 @@ const onRequest = (req, res) => {
     res.writeHead('200', { 'Content-Type': 'text/html;charset=utf-8' })
     res.write('<h3>successful</h3>')
 
-    superagent.get(originUrl).charset('gbk').end((err, sres) => {
+    res.write(req.url)
+
+    if(req.url =="/favicon.ico"){
+    	res.end('http://p1.bqimg.com/578892/9de2d8fd61cf9c26.png')
+    }else{
+    	superagent.get(originUrl).charset('gbk').end((err, sres) => {
         if (err) {
             console.log(err)
             return
         }
-
-        
-		
 
         const $ = cheerio.load(sres.text, { decodeEntities: false })
         const pageurls_dome = $('.mt10  a').slice(0, 28)
@@ -57,7 +68,6 @@ const onRequest = (req, res) => {
 
             pageurls.push(temp_obj.href)
 
-            	// console.log(temp_obj.href)
             const insert_commond = 'insert into tab_list values(null,?,?);'
             let 	insert_commond_params = [temp_obj.text,temp_obj.href]
             //将数据放入数据库
@@ -67,7 +77,7 @@ const onRequest = (req, res) => {
        // --------------------获取到了所有排行版的url--》pageurls--------------------------
        
        ep.after('movielisturl',pageurls.length,(allmovieurls)=>{
-       		// console.log(allmovieurls.length)
+       		
        		//这里得到的allmovieurls为28个数组   放到一个临时数组中统一处理
        		const allmovieurls_temp = []
 
@@ -76,34 +86,31 @@ const onRequest = (req, res) => {
        				allmovieurls_temp.push(_item)
        			})
        		})
-       		console.log(allmovieurls_temp)
-
-
+       	
        		let curCount = 0
        		const reptileMove =(url,callback)=>{
        			const delay = parseInt((Math.random()*30000000)%1000,10)
        			
 				curCount++;
                 console.log('现在的并发数是', curCount, '，正在抓取的是', url, '，耗时' + delay + '毫秒')
+                superagent.get(url.toString()).charset('gbk').end((err,sres)=>{
+                	if(err){
+                		console.log(err)
+                		return
+                	}
 
+                	if(!isRepeat(url)){
+                		const movinfor = moviedetai(sres)
+                		catchDate.push(movinfor)
+                		console.log(movinfor)
+                	}
+                	
+                })
+                setTimeout(function() {
+                    curCount--;
+                    callback(null, url + 'Call back content');
+                }, delay);
 
-                // superagent.get(url).charset('gbk').end((err,sres)=>{
-                // 	if(err){
-                // 		console.log(err)
-                // 		return
-                // 	}
-
-                // 	const movinfor = moviedetai(sres)
-                // 	catchDate.push(movinfor)
-
-                // 	res.write(movinfor);
-
-                // })
-
-                setTimeout(()=>{
-                	curCount--
-                	callback(null,url + 'Call back content')
-                },delay)
        		}
 
        		async.mapLimit(allmovieurls,5,(url,callback)=>{
@@ -151,12 +158,11 @@ const onRequest = (req, res) => {
        				tempArr.push(movieUrl)
        			}
        			ep.emit('movielisturl',tempArr)
-       			// console.log(detailPageUrlsArray)
-       		})
-
-       		// res.end('<h3>end</h3>')
+       			
+       		})       		
        	})
     })
+    }
 }
 
 
