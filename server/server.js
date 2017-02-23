@@ -24,7 +24,7 @@ const moviedetai = (sres)=>{
 	const $ =cheerio.load(sres.text)
 
 	 infoArray.poster = $('.posterCon img').attr('src')//海报
-	infoArray.title = $('.txtIntroCon .tit a').attr('title') //电影名称
+	 infoArray.title = $('.txtIntroCon .tit a').attr('title') //电影名称
 	 infoArray.score = $('.txtIntroCon .emScore').text()//评分
 	 infoArray.jianjie	= $('.txtList .extend .sAll').text()//简介
 	// const other = $('.txtList .extend .sAll')
@@ -119,9 +119,6 @@ const onRequest = (req, res) => {
        			endDate = new Date()
        			console.log('final:')
                 console.log(result)
-				console.log(catchDate)     
-				
-
 
                 //统计结果
                 res.write('<br/>');
@@ -151,7 +148,7 @@ const onRequest = (req, res) => {
        			const detailPageUrls = $('.picList .sTit a')
 
        			const tempArr = []//临时数组  用于emit发送数据
-       			for(let i=0; i<1; i++){
+       			for(let i=0; i<1; i++){//这里改成了1  方便测试；爬区全部排行榜的时候用改成detailPageUrls.length
        				
        				const movieUrl = detailPageUrls.eq(i).attr('href')
        				detailPageUrlsArray.push(movieUrl)
